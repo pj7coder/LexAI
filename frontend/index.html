@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LexAI — AI Legal Aid System | Powered by IBM Granite</title>
+<style>
+  /* ── Reset & Base ─────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:          #0d1117;
+    --surface:     #161b22;
+    --surface2:    #1c2333;
+    --border:      #30363d;
+    --text:        #e6edf3;
+    --muted:       #8b949e;
+    --accent:      #1f6feb;
+    --accent-glow: #388bfd;
+    --success:     #3fb950;
+    --warning:     #d29922;
+    --danger:      #f85149;
+    --purple:      #a371f7;
+    --cyan:        #39c5cf;
+    --gold:        #e3b341;
+    --radius:      10px;
+    --font:        -apple-system, "Segoe UI", system-ui, sans-serif;
+  }
+  html { font-size: 15px; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  a { color: var(--accent-glow); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  button { cursor: pointer; font-family: var(--font); }
+
+  /* ── Layout ───────────────────────────────────────────────────── */
+  .app { display: flex; height: 100vh; overflow: hidden; }
+
+  /* ── Sidebar ──────────────────────────────────────────────────── */
+  .sidebar {
+    width: 260px;
+    min-width: 260px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow-y: auto;
+  }
+  .logo {
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo h1 { font-size: 1.4rem; font-weight: 700; color: var(--text); }
+  .logo h1 span { color: var(--accent-glow); }
+  .logo p { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+  .ibm-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    margin-top: 8px; padding: 3px 8px;
+    background: rgba(31,111,235,0.15); border: 1px solid rgba(56,139,253,0.3);
+    border-radius: 20px; font-size: 0.68rem; color: var(--accent-glow);
+  }
+  .ibm-badge svg { width: 12px; height: 12px; }
+  .nav { padding: 12px 0; flex: 1; }
+  .nav-section { padding: 6px 16px 4px; font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 20px; cursor: pointer; border-left: 3px solid transparent;
+    transition: background 0.15s, border-color 0.15s;
+    font-size: 0.88rem; color: var(--muted);
+    user-select: none;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+  .nav-item.active { background: rgba(31,111,235,0.1); border-left-color: var(--accent); color: var(--text); }
+  .nav-item .icon { font-size: 1rem; width: 20px; text-align: center; }
+  .nav-item .badge {
+    margin-left: auto; padding: 1px 7px; border-radius: 10px;
+    font-size: 0.65rem; background: var(--accent); color: white;
+  }
+  .sidebar-footer {
+    padding: 14px 20px;
+    border-top: 1px solid var(--border);
+    font-size: 0.72rem; color: var(--muted);
+  }
+  .status-dot {
+    display: inline-block; width: 7px; height: 7px;
+    border-radius: 50%; background: var(--success); margin-right: 5px;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+
+  /* ── Main Content ─────────────────────────────────────────────── */
+  .main {
+    flex: 1; display: flex; flex-direction: column; overflow: hidden;
+  }
+  .topbar {
+    padding: 14px 24px; border-bottom: 1px solid var(--border);
+    background: var(--surface); display: flex; align-items: center; gap: 12px;
+    flex-shrink: 0;
+  }
+  .topbar h2 { font-size: 1.1rem; font-weight: 600; }
+  .topbar .sub { font-size: 0.8rem; color: var(--muted); margin-left: auto; }
+  .content { flex: 1; overflow-y: auto; padding: 24px; }
+
+  /* ── Cards ────────────────────────────────────────────────────── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 16px; padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .card-header h3 { font-size: 0.95rem; font-weight: 600; }
+  .card-header .agent-tag {
+    margin-left: auto; padding: 3px 10px; border-radius: 20px;
+    font-size: 0.7rem; font-weight: 600;
+  }
+  .tag-contract { background: rgba(163,113,247,0.15); color: var(--purple); border: 1px solid rgba(163,113,247,0.3); }
+  .tag-compliance { background: rgba(57,197,207,0.1); color: var(--cyan); border: 1px solid rgba(57,197,207,0.3); }
+  .tag-rag { background: rgba(63,185,80,0.1); color: var(--success); border: 1px solid rgba(63,185,80,0.3); }
+  .tag-research { background: rgba(227,179,65,0.1); color: var(--gold); border: 1px solid rgba(227,179,65,0.3); }
+  .tag-chat { background: rgba(31,111,235,0.15); color: var(--accent-glow); border: 1px solid rgba(56,139,253,0.3); }
+
+  /* ── KPI Grid ─────────────────────────────────────────────────── */
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+  .kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+  }
+  .kpi .label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .kpi .value { font-size: 1.9rem; font-weight: 700; margin: 6px 0 2px; }
+  .kpi .delta { font-size: 0.75rem; color: var(--success); }
+  .kpi .delta.down { color: var(--danger); }
+
+  /* ── Upload Zone ──────────────────────────────────────────────── */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    margin-bottom: 16px;
+  }
+  .upload-zone:hover { border-color: var(--accent); background: rgba(31,111,235,0.04); }
+  .upload-zone.dragover { border-color: var(--accent-glow); background: rgba(31,111,235,0.08); }
+  .upload-zone p { color: var(--muted); font-size: 0.85rem; margin-top: 8px; }
+  .upload-zone .icon-big { font-size: 2.5rem; }
+
+  /* ── Buttons ──────────────────────────────────────────────────── */
+  .btn {
+    padding: 9px 18px; border-radius: 6px; font-size: 0.85rem; font-weight: 500;
+    border: 1px solid var(--border); background: var(--surface2); color: var(--text);
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .btn:hover { background: var(--border); }
+  .btn-primary {
+    background: var(--accent); border-color: var(--accent); color: white;
+  }
+  .btn-primary:hover { background: var(--accent-glow); border-color: var(--accent-glow); }
+  .btn-sm { padding: 6px 12px; font-size: 0.78rem; }
+  .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* ── Form Elements ────────────────────────────────────────────── */
+  input, textarea, select {
+    width: 100%; padding: 9px 12px;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text); font-family: var(--font); font-size: 0.88rem;
+    outline: none; transition: border-color 0.15s;
+  }
+  input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 90px; }
+  label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 5px; }
+  .form-row { margin-bottom: 14px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  /* ── Checkbox Pills ───────────────────────────────────────────── */
+  .pill-group { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pill {
+    padding: 5px 12px; border-radius: 20px; font-size: 0.75rem;
+    border: 1px solid var(--border); background: var(--bg); color: var(--muted);
+    cursor: pointer; transition: all 0.15s; user-select: none;
+  }
+  .pill.selected { border-color: var(--accent); background: rgba(31,111,235,0.15); color: var(--accent-glow); }
+
+  /* ── Results / Analysis Output ────────────────────────────────── */
+  .result-box {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px;
+    font-size: 0.85rem; line-height: 1.7; color: var(--text);
+    max-height: 480px; overflow-y: auto;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .result-box h1,
+  .result-box h2,
+  .result-box h3 { color: var(--accent-glow); margin: 12px 0 6px; font-size: 1rem; }
+  .result-box strong { color: var(--text); }
+  .result-box code { background: var(--surface2); padding: 1px 5px; border-radius: 3px; font-size: 0.82rem; }
+
+  /* ── Risk Badge ───────────────────────────────────────────────── */
+  .risk-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;
+  }
+  .risk-HIGH   { background: rgba(248,81,73,0.15); color: var(--danger); border: 1px solid rgba(248,81,73,0.4); }
+  .risk-MEDIUM { background: rgba(210,153,34,0.15); color: var(--warning); border: 1px solid rgba(210,153,34,0.4); }
+  .risk-LOW    { background: rgba(63,185,80,0.15); color: var(--success); border: 1px solid rgba(63,185,80,0.4); }
+
+  /* ── Chat Interface ───────────────────────────────────────────── */
+  .chat-container { display: flex; flex-direction: column; height: 100%; }
+  .chat-messages {
+    flex: 1; overflow-y: auto; padding: 16px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .msg { display: flex; gap: 10px; max-width: 85%; }
+  .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+  .msg.assistant { align-self: flex-start; }
+  .msg-avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.85rem; flex-shrink: 0;
+  }
+  .msg.user .msg-avatar { background: var(--accent); color: white; }
+  .msg.assistant .msg-avatar { background: var(--surface2); border: 1px solid var(--border); }
+  .msg-bubble {
+    padding: 11px 15px; border-radius: 12px;
+    font-size: 0.85rem; line-height: 1.6; white-space: pre-wrap;
+  }
+  .msg.user .msg-bubble { background: var(--accent); color: white; border-radius: 12px 12px 2px 12px; }
+  .msg.assistant .msg-bubble {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px 12px 12px 2px;
+  }
+  .msg-meta { font-size: 0.68rem; color: var(--muted); margin-top: 4px; }
+  .chat-input-area {
+    padding: 14px; border-top: 1px solid var(--border);
+    display: flex; gap: 10px; align-items: flex-end;
+    background: var(--surface);
+  }
+  .chat-input-area textarea { min-height: 44px; max-height: 120px; padding: 10px 12px; }
+  .typing-indicator { display: flex; gap: 4px; padding: 10px 14px; }
+  .typing-indicator span {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--muted);
+    animation: bounce 1.2s infinite;
+  }
+  .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%,80%,100% { transform: scale(0.8); opacity:0.5; } 40% { transform: scale(1.2); opacity:1; } }
+
+  /* ── Progress / Score Bar ─────────────────────────────────────── */
+  .score-bar { background: var(--border); border-radius: 4px; height: 8px; overflow: hidden; margin: 6px 0; }
+  .score-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+  .score-high   { background: var(--success); }
+  .score-medium { background: var(--warning); }
+  .score-low    { background: var(--danger); }
+
+  /* ── Agent Cards Grid ─────────────────────────────────────────── */
+  .agent-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .agent-card {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 18px; cursor: pointer; transition: border-color 0.2s, background 0.2s;
+    background: var(--surface);
+  }
+  .agent-card:hover { border-color: var(--accent); background: rgba(31,111,235,0.04); }
+  .agent-card .agent-icon { font-size: 2rem; margin-bottom: 10px; }
+  .agent-card h4 { font-size: 0.9rem; font-weight: 600; margin-bottom: 5px; }
+  .agent-card p { font-size: 0.78rem; color: var(--muted); line-height: 1.5; }
+  .agent-card .agent-status { margin-top: 10px; font-size: 0.72rem; color: var(--success); }
+
+  /* ── Loading Spinner ──────────────────────────────────────────── */
+  .spinner {
+    width: 20px; height: 20px; border-radius: 50%;
+    border: 2px solid var(--border); border-top-color: var(--accent);
+    animation: spin 0.7s linear infinite;
+    display: inline-block;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Toast ────────────────────────────────────────────────────── */
+  #toast {
+    position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+    padding: 12px 20px; border-radius: 8px; font-size: 0.85rem;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    transform: translateY(100px); opacity: 0;
+    transition: transform 0.3s, opacity 0.3s;
+    max-width: 340px;
+  }
+  #toast.show { transform: translateY(0); opacity: 1; }
+  #toast.success { border-color: var(--success); }
+  #toast.error   { border-color: var(--danger); }
+
+  /* ── Hidden ───────────────────────────────────────────────────── */
+  .hidden { display: none !important; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* ── Misc ─────────────────────────────────────────────────────── */
+  .divider { height: 1px; background: var(--border); margin: 16px 0; }
+  .flex { display: flex; }
+  .gap-8 { gap: 8px; }
+  .items-center { align-items: center; }
+  .mt-12 { margin-top: 12px; }
+  .text-muted { color: var(--muted); font-size: 0.8rem; }
+  .text-success { color: var(--success); }
+  .text-danger { color: var(--danger); }
+  .source-pill {
+    display: inline-block; padding: 2px 8px; border-radius: 10px;
+    font-size: 0.7rem; background: var(--surface2); border: 1px solid var(--border);
+    color: var(--muted); margin: 2px;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .sidebar { width: 56px; min-width: 56px; }
+    .sidebar .nav-item span, .logo h1, .logo p, .ibm-badge, .sidebar-footer, .nav-section { display: none; }
+    .nav-item { justify-content: center; padding: 12px; }
+    .kpi-grid { grid-template-columns: repeat(2,1fr); }
+    .agent-grid { grid-template-columns: 1fr; }
+    .form-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<div class="app">
+  <!-- ═══════════════════════════════════ SIDEBAR ══════════════════════════════════ -->
+  <aside class="sidebar">
+    <div class="logo">
+      <h1>Lex<span>AI</span></h1>
+      <p>AI Legal Aid System</p>
+      <div class="ibm-badge">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg>
+        IBM Granite + WatsonX
+      </div>
+    </div>
+
+    <nav class="nav">
+      <div class="nav-section">Overview</div>
+      <div class="nav-item active" onclick="switchTab('dashboard')">
+        <span class="icon">🏠</span><span>Dashboard</span>
+      </div>
+
+      <div class="nav-section">Agents</div>
+      <div class="nav-item" onclick="switchTab('chat')">
+        <span class="icon">💬</span><span>Legal Assistant</span>
+      </div>
+      <div class="nav-item" onclick="switchTab('contract')">
+        <span class="icon">📋</span><span>Contract Review</span>
+      </div>
+      <div class="nav-item" onclick="switchTab('compliance')">
+        <span class="icon">✅</span><span>Compliance Check</span>
+      </div>
+      <div class="nav-item" onclick="switchTab('research')">
+        <span class="icon">⚖️</span><span>Case Research</span>
+      </div>
+
+      <div class="nav-section">Documents</div>
+      <div class="nav-item" onclick="switchTab('upload')">
+        <span class="icon">📤</span><span>Upload & Index</span>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <span class="status-dot"></span> API Connected
+      <br/>v1.0 · IBM Cloud
+    </div>
+  </aside>
+
+  <!-- ═══════════════════════════════════ MAIN ════════════════════════════════════ -->
+  <main class="main">
+    <div class="topbar">
+      <span id="topbar-icon">🏠</span>
+      <h2 id="topbar-title">Dashboard</h2>
+      <span class="sub" id="topbar-sub">AI Legal Aid Multi-Agent System · IBM Granite 13B</span>
+    </div>
+
+    <div class="content">
+
+      <!-- ─────────────────── DASHBOARD ─────────────────── -->
+      <div id="tab-dashboard" class="tab-content active">
+
+        <div class="kpi-grid">
+          <div class="kpi">
+            <div class="label">Documents Indexed</div>
+            <div class="value" id="kpi-docs">—</div>
+            <div class="delta">RAG chunks in vector store</div>
+          </div>
+          <div class="kpi">
+            <div class="label">Active Agents</div>
+            <div class="value" style="color:var(--success)">4</div>
+            <div class="delta">↑ All operational</div>
+          </div>
+          <div class="kpi">
+            <div class="label">Analyses Run</div>
+            <div class="value" id="kpi-analyses">0</div>
+            <div class="delta">This session</div>
+          </div>
+          <div class="kpi">
+            <div class="label">AI Engine</div>
+            <div class="value" style="font-size:1rem; color:var(--accent-glow)">Granite</div>
+            <div class="delta">IBM WatsonX LLM</div>
+          </div>
+        </div>
+
+        <!-- Agent Grid -->
+        <div class="agent-grid">
+          <div class="agent-card" onclick="switchTab('contract')">
+            <div class="agent-icon">📋</div>
+            <div class="agent-tag tag-contract" style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:0.7rem;font-weight:600;margin-bottom:8px;">Agent 1</div>
+            <h4>Contract Reviewer</h4>
+            <p>Flags risks, one-sided clauses, missing protections, and obligations in contracts.</p>
+            <div class="agent-status">● Ready · IBM Granite 13B</div>
+          </div>
+          <div class="agent-card" onclick="switchTab('compliance')">
+            <div class="agent-icon">✅</div>
+            <div class="agent-tag tag-compliance" style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:0.7rem;font-weight:600;margin-bottom:8px;">Agent 2</div>
+            <h4>Compliance Checker</h4>
+            <p>Verifies GDPR, HIPAA, SOX, PCI-DSS, and other regulatory adherence.</p>
+            <div class="agent-status">● Ready · IBM Granite 13B</div>
+          </div>
+          <div class="agent-card" onclick="switchTab('chat')">
+            <div class="agent-icon">🤖</div>
+            <div class="agent-tag tag-rag" style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:0.7rem;font-weight:600;margin-bottom:8px;">Agent 3</div>
+            <h4>Q&A RAG Agent</h4>
+            <p>Answers your legal questions using RAG over indexed documents and legal knowledge.</p>
+            <div class="agent-status">● Ready · FAISS + IBM Granite</div>
+          </div>
+          <div class="agent-card" onclick="switchTab('research')">
+            <div class="agent-icon">⚖️</div>
+            <div class="agent-tag tag-research" style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:0.7rem;font-weight:600;margin-bottom:8px;">Agent 4</div>
+            <h4>Case Research Agent</h4>
+            <p>Finds relevant judgments, case law, and legal precedents for your situation.</p>
+            <div class="agent-status">● Ready · IBM Granite 13B</div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="card">
+          <div class="card-header">
+            <span>🏗️</span>
+            <h3>System Architecture</h3>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0;text-align:center;font-size:0.75rem;">
+            <div style="padding:14px 8px;background:rgba(31,111,235,0.1);border-radius:8px;border:1px solid rgba(56,139,253,0.3);">
+              <div style="font-size:1.3rem">🖥️</div><div style="color:var(--accent-glow);margin-top:4px;font-weight:600">Frontend</div>
+              <div style="color:var(--muted);margin-top:2px">HTML5 Dashboard</div>
+            </div>
+            <div style="padding:14px 8px;display:flex;align-items:center;justify-content:center;color:var(--border);font-size:1.2rem">→</div>
+            <div style="padding:14px 8px;background:rgba(163,113,247,0.1);border-radius:8px;border:1px solid rgba(163,113,247,0.3);">
+              <div style="font-size:1.3rem">⚡</div><div style="color:var(--purple);margin-top:4px;font-weight:600">FastAPI</div>
+              <div style="color:var(--muted);margin-top:2px">Multi-Agent Orchestrator</div>
+            </div>
+            <div style="padding:14px 8px;display:flex;align-items:center;justify-content:center;color:var(--border);font-size:1.2rem">→</div>
+            <div style="padding:14px 8px;background:rgba(57,197,207,0.1);border-radius:8px;border:1px solid rgba(57,197,207,0.3);">
+              <div style="font-size:1.3rem">🧠</div><div style="color:var(--cyan);margin-top:4px;font-weight:600">IBM WatsonX</div>
+              <div style="color:var(--muted);margin-top:2px">Granite 13B LLM</div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px;">
+            <div style="padding:10px;background:var(--bg);border-radius:6px;border:1px solid var(--border);font-size:0.75rem;text-align:center;">
+              <div style="color:var(--gold);font-weight:600">📄 Document Parser</div>
+              <div style="color:var(--muted);margin-top:2px">PDF · DOCX · TXT</div>
+            </div>
+            <div style="padding:10px;background:var(--bg);border-radius:6px;border:1px solid var(--border);font-size:0.75rem;text-align:center;">
+              <div style="color:var(--success);font-weight:600">🔍 FAISS Vector Store</div>
+              <div style="color:var(--muted);margin-top:2px">RAG · all-MiniLM-L6</div>
+            </div>
+            <div style="padding:10px;background:var(--bg);border-radius:6px;border:1px solid var(--border);font-size:0.75rem;text-align:center;">
+              <div style="color:var(--cyan);font-weight:600">☁️ IBM Cloud</div>
+              <div style="color:var(--muted);margin-top:2px">Discovery · Watson</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─────────────────── CHAT ─────────────────── -->
+      <div id="tab-chat" class="tab-content" style="height:calc(100vh - 72px);display:none;flex-direction:column;">
+        <div class="card" style="flex:1;display:flex;flex-direction:column;margin:0;height:100%;overflow:hidden;">
+          <div class="card-header">
+            <span>💬</span>
+            <h3>Legal Assistant</h3>
+            <span class="agent-tag tag-chat">Q&A RAG · Auto-Route</span>
+          </div>
+          <div class="chat-messages" id="chat-messages">
+            <div class="msg assistant">
+              <div class="msg-avatar">🤖</div>
+              <div>
+                <div class="msg-bubble">Hello! I'm LexAI, your AI-powered legal assistant backed by IBM Granite.
+
+I can help you with:
+• 📋 Contract review and risk analysis
+• ✅ Regulatory compliance checks
+• ⚖️ Legal Q&amp;A and explanations
+• 🔍 Case law and precedent research
+
+Ask me anything, or describe your legal situation and I'll route it to the best specialized agent.
+
+⚠️ <em>I provide general legal information — not legal advice. Always consult a qualified attorney.</em></div>
+                <div class="msg-meta">LexAI · Powered by IBM Granite 13B · Just now</div>
+              </div>
+            </div>
+          </div>
+          <div class="chat-input-area">
+            <textarea id="chat-input" placeholder="Ask a legal question, e.g. 'What is the difference between void and voidable contracts?'" rows="1"
+              onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"></textarea>
+            <button class="btn btn-primary" onclick="sendChat()" id="chat-send-btn">Send</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─────────────────── CONTRACT REVIEW ─────────────────── -->
+      <div id="tab-contract" class="tab-content">
+        <div class="card">
+          <div class="card-header">
+            <span>📋</span>
+            <h3>Contract Reviewer Agent</h3>
+            <span class="agent-tag tag-contract">IBM Granite 13B</span>
+          </div>
+
+          <div class="form-row">
+            <label>Contract Name</label>
+            <input type="text" id="contract-name" placeholder="e.g. Service Agreement with Vendor X" value="Service Agreement" />
+          </div>
+          <div class="form-row">
+            <label>Contract Text (paste full contract)</label>
+            <textarea id="contract-text" style="min-height:200px;" placeholder="Paste the full contract text here...&#10;&#10;Example: This Service Agreement is entered into as of January 1, 2025, between ABC Corp (the 'Client') and XYZ Ltd (the 'Vendor')..."></textarea>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-primary" onclick="runContractReview()">
+              🔍 Analyze Contract
+            </button>
+            <button class="btn" onclick="loadSampleContract()">📄 Load Sample</button>
+            <div id="contract-spinner" class="hidden"><div class="spinner"></div></div>
+          </div>
+        </div>
+
+        <div id="contract-results" class="hidden">
+          <div class="card">
+            <div class="card-header">
+              <h3>Analysis Results</h3>
+              <div id="contract-risk-badge"></div>
+            </div>
+            <div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+              <div style="flex:1;min-width:140px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+                <div class="text-muted">Risk Level</div>
+                <div id="contract-risk-level" style="font-size:1.3rem;font-weight:700;margin-top:4px;"></div>
+              </div>
+              <div style="flex:1;min-width:140px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+                <div class="text-muted">Risk Flags Found</div>
+                <div id="contract-flag-count" style="font-size:1.3rem;font-weight:700;margin-top:4px;color:var(--warning);"></div>
+              </div>
+              <div style="flex:1;min-width:140px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+                <div class="text-muted">Analysis By</div>
+                <div style="font-size:0.85rem;font-weight:600;margin-top:4px;color:var(--accent-glow);">IBM Granite 13B</div>
+              </div>
+            </div>
+            <div id="contract-analysis" class="result-box"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─────────────────── COMPLIANCE CHECK ─────────────────── -->
+      <div id="tab-compliance" class="tab-content">
+        <div class="card">
+          <div class="card-header">
+            <span>✅</span>
+            <h3>Compliance Checker Agent</h3>
+            <span class="agent-tag tag-compliance">IBM Granite 13B</span>
+          </div>
+
+          <div class="form-row">
+            <label>Document Name</label>
+            <input type="text" id="compliance-name" placeholder="e.g. Privacy Policy v2" value="Privacy Policy" />
+          </div>
+          <div class="form-row">
+            <label>Select Regulations to Check Against</label>
+            <div class="pill-group" id="regulation-pills">
+              <div class="pill selected" onclick="togglePill(this,'GDPR')">GDPR</div>
+              <div class="pill" onclick="togglePill(this,'HIPAA')">HIPAA</div>
+              <div class="pill" onclick="togglePill(this,'CCPA')">CCPA</div>
+              <div class="pill" onclick="togglePill(this,'SOX')">SOX</div>
+              <div class="pill" onclick="togglePill(this,'ISO 27001')">ISO 27001</div>
+              <div class="pill" onclick="togglePill(this,'PCI-DSS')">PCI-DSS</div>
+              <div class="pill" onclick="togglePill(this,'DPDP Act')">DPDP Act</div>
+              <div class="pill" onclick="togglePill(this,'AML/KYC')">AML/KYC</div>
+              <div class="pill selected" onclick="togglePill(this,'General Contract Law')">General Contract Law</div>
+            </div>
+          </div>
+          <div class="form-row">
+            <label>Document Text</label>
+            <textarea id="compliance-text" style="min-height:180px;" placeholder="Paste the document text to check for compliance..."></textarea>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-primary" onclick="runComplianceCheck()">
+              ✅ Run Compliance Check
+            </button>
+            <button class="btn" onclick="loadSampleCompliance()">📄 Load Sample</button>
+            <div id="compliance-spinner" class="hidden"><div class="spinner"></div></div>
+          </div>
+        </div>
+
+        <div id="compliance-results" class="hidden">
+          <div class="card">
+            <div class="card-header">
+              <h3>Compliance Report</h3>
+            </div>
+            <div style="margin-bottom:14px;">
+              <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                <span class="text-muted">Compliance Score</span>
+                <span id="compliance-score-label" style="font-weight:600;"></span>
+              </div>
+              <div class="score-bar">
+                <div id="compliance-score-bar" class="score-fill" style="width:0%"></div>
+              </div>
+            </div>
+            <div id="compliance-violations" style="margin-bottom:14px;"></div>
+            <div id="compliance-report" class="result-box"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─────────────────── CASE RESEARCH ─────────────────── -->
+      <div id="tab-research" class="tab-content">
+        <div class="card">
+          <div class="card-header">
+            <span>⚖️</span>
+            <h3>Case Research Agent</h3>
+            <span class="agent-tag tag-research">IBM Granite 13B</span>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-row">
+              <label>Legal Query / Situation</label>
+              <textarea id="research-query" style="min-height:100px;" placeholder="Describe your legal situation or question for case research...&#10;&#10;e.g. 'I need cases about data breach liability under GDPR and right to compensation'"></textarea>
+            </div>
+            <div>
+              <div class="form-row">
+                <label>Jurisdiction</label>
+                <select id="research-jurisdiction">
+                  <option>General / International</option>
+                  <option>United States</option>
+                  <option>European Union</option>
+                  <option>United Kingdom</option>
+                  <option>India</option>
+                  <option>Australia</option>
+                  <option>Canada</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <label>Legal Area</label>
+                <select id="research-area">
+                  <option value="">General</option>
+                  <option value="contract">Contract Law</option>
+                  <option value="employment">Employment Law</option>
+                  <option value="intellectual property">Intellectual Property</option>
+                  <option value="privacy">Privacy / Data Protection</option>
+                  <option value="gdpr">GDPR / Data Law</option>
+                  <option value="corporate">Corporate Law</option>
+                  <option value="tort">Tort Law</option>
+                  <option value="criminal">Criminal Law</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-primary" onclick="runCaseResearch()">
+              🔍 Research Cases
+            </button>
+            <div id="research-spinner" class="hidden"><div class="spinner"></div></div>
+          </div>
+        </div>
+
+        <div id="research-results" class="hidden">
+          <div class="card">
+            <div class="card-header">
+              <h3>Case Research Report</h3>
+              <span id="research-jurisdiction-tag" class="agent-tag tag-research"></span>
+            </div>
+            <div id="research-known-cases" style="margin-bottom:14px;"></div>
+            <div id="research-report" class="result-box"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─────────────────── UPLOAD ─────────────────── -->
+      <div id="tab-upload" class="tab-content">
+        <div class="card">
+          <div class="card-header">
+            <span>📤</span>
+            <h3>Upload & Index Legal Documents</h3>
+          </div>
+          <p class="text-muted" style="margin-bottom:16px;">
+            Upload PDF, DOCX, or TXT files to index them into the RAG vector store.
+            Once indexed, the Q&A Agent will use them to answer questions.
+          </p>
+
+          <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()"
+            ondragover="event.preventDefault();this.classList.add('dragover')"
+            ondragleave="this.classList.remove('dragover')"
+            ondrop="handleDrop(event)">
+            <div class="icon-big">📂</div>
+            <div style="font-size:0.95rem;margin-top:8px;color:var(--text);">Click to upload or drag & drop</div>
+            <p>PDF, DOCX, TXT — max 10 MB per file</p>
+          </div>
+          <input type="file" id="file-input" class="hidden" accept=".pdf,.docx,.doc,.txt,.md" onchange="handleFileSelect(event)" />
+
+          <div id="upload-status" class="hidden">
+            <div class="card" style="padding:14px;margin-top:12px;">
+              <div class="flex items-center gap-8">
+                <div class="spinner"></div>
+                <span id="upload-status-text">Uploading and indexing document...</span>
+              </div>
+            </div>
+          </div>
+
+          <div id="upload-result" class="hidden">
+            <div class="card" style="margin-top:12px;padding:16px;">
+              <h4 style="color:var(--success);margin-bottom:10px;">✅ Document Indexed Successfully</h4>
+              <div id="upload-result-details"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h3>Vector Store Status</h3></div>
+          <div style="display:flex;gap:12px;align-items:center;">
+            <div style="font-size:2rem;font-weight:700;color:var(--accent-glow)" id="vs-count">—</div>
+            <div>
+              <div style="font-weight:600;">Indexed Chunks</div>
+              <div class="text-muted">Available for RAG retrieval</div>
+            </div>
+            <button class="btn btn-sm" style="margin-left:auto" onclick="refreshStats()">🔄 Refresh</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </main>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════════════
+const API_BASE = 'http://localhost:8000/api/v1';
+let analysesCount = 0;
+let chatHistory   = [];
+
+// ═══════════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════════
+const TAB_META = {
+  dashboard:  { icon: '🏠', title: 'Dashboard',              sub: 'Multi-agent overview & system status' },
+  chat:       { icon: '💬', title: 'Legal Assistant',        sub: 'Conversational AI · Q&A RAG + Auto-route' },
+  contract:   { icon: '📋', title: 'Contract Reviewer',      sub: 'Agent 1 · Risk analysis & clause flagging' },
+  compliance: { icon: '✅', title: 'Compliance Checker',     sub: 'Agent 2 · Regulatory adherence verification' },
+  research:   { icon: '⚖️', title: 'Case Research',          sub: 'Agent 4 · Precedents & legal judgments' },
+  upload:     { icon: '📤', title: 'Upload & Index',         sub: 'Add documents to RAG vector store' },
+};
+
+function switchTab(id) {
+  document.querySelectorAll('.tab-content').forEach(el => {
+    el.style.display = 'none';
+    el.classList.remove('active');
+  });
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+
+  const tab = document.getElementById('tab-' + id);
+  if (!tab) return;
+  tab.style.display = id === 'chat' ? 'flex' : 'block';
+  tab.classList.add('active');
+
+  const m = TAB_META[id] || {};
+  document.getElementById('topbar-icon').textContent  = m.icon  || '';
+  document.getElementById('topbar-title').textContent = m.title || id;
+  document.getElementById('topbar-sub').textContent   = m.sub   || '';
+
+  // Highlight nav item
+  document.querySelectorAll('.nav-item').forEach(el => {
+    if (el.getAttribute('onclick') && el.getAttribute('onclick').includes(`'${id}'`))
+      el.classList.add('active');
+  });
+
+  if (id === 'upload' || id === 'dashboard') refreshStats();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════════
+function toast(msg, type = 'info') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  setTimeout(() => { el.className = ''; }, 3500);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STATS
+// ═══════════════════════════════════════════════════════════════
+async function refreshStats() {
+  try {
+    const r = await fetch(API_BASE + '/documents/stats');
+    if (r.ok) {
+      const d = await r.json();
+      const count = d.indexed_chunks ?? 0;
+      const kpi = document.getElementById('kpi-docs');
+      if (kpi) kpi.textContent = count;
+      const vs = document.getElementById('vs-count');
+      if (vs) vs.textContent = count;
+    }
+  } catch (_) {}
+  const kpiA = document.getElementById('kpi-analyses');
+  if (kpiA) kpiA.textContent = analysesCount;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CHAT
+// ═══════════════════════════════════════════════════════════════
+function appendMsg(role, text, agentLabel) {
+  const container = document.getElementById('chat-messages');
+  const wrapper   = document.createElement('div');
+  wrapper.className = `msg ${role}`;
+  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const label = agentLabel ? `LexAI · ${agentLabel}` : (role === 'user' ? 'You' : 'LexAI');
+  wrapper.innerHTML = `
+    <div class="msg-avatar">${role === 'user' ? '👤' : '🤖'}</div>
+    <div>
+      <div class="msg-bubble">${escHtml(text)}</div>
+      <div class="msg-meta">${label} · ${time}</div>
+    </div>`;
+  container.appendChild(wrapper);
+  container.scrollTop = container.scrollHeight;
+}
+
+function appendTyping() {
+  const container = document.getElementById('chat-messages');
+  const el = document.createElement('div');
+  el.id = 'typing-bubble';
+  el.className = 'msg assistant';
+  el.innerHTML = `
+    <div class="msg-avatar">🤖</div>
+    <div class="msg-bubble" style="padding:10px 15px;">
+      <div class="typing-indicator">
+        <span></span><span></span><span></span>
+      </div>
+    </div>`;
+  container.appendChild(el);
+  container.scrollTop = container.scrollHeight;
+}
+
+function removeTyping() {
+  const el = document.getElementById('typing-bubble');
+  if (el) el.remove();
+}
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const msg   = input.value.trim();
+  if (!msg) return;
+
+  input.value = '';
+  appendMsg('user', msg);
+  chatHistory.push({ role: 'user', content: msg });
+  appendTyping();
+
+  document.getElementById('chat-send-btn').disabled = true;
+
+  try {
+    const resp = await fetch(API_BASE + '/chat/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: msg,
+        session_history: chatHistory.slice(-8),
+        auto_route: true,
+      }),
+    });
+    const data = await resp.json();
+    removeTyping();
+
+    const reply = data.reply || data.detail || 'No response received.';
+    appendMsg('assistant', reply, data.agent_used);
+    chatHistory.push({ role: 'assistant', content: reply });
+    analysesCount++;
+    refreshStats();
+
+    if (data.sources && data.sources.length > 0) {
+      const srcDiv = document.createElement('div');
+      srcDiv.style.cssText = 'padding:0 44px;margin-top:-8px;margin-bottom:8px;';
+      srcDiv.innerHTML = 'Sources: ' + data.sources.map(s => `<span class="source-pill">${escHtml(s)}</span>`).join('');
+      document.getElementById('chat-messages').appendChild(srcDiv);
+    }
+  } catch (e) {
+    removeTyping();
+    appendMsg('assistant', '⚠️ Could not reach the API server. Make sure the backend is running on http://localhost:8000');
+  }
+  document.getElementById('chat-send-btn').disabled = false;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CONTRACT REVIEW
+// ═══════════════════════════════════════════════════════════════
+async function runContractReview() {
+  const text = document.getElementById('contract-text').value.trim();
+  const name = document.getElementById('contract-name').value.trim() || 'contract';
+  if (!text) { toast('Please paste contract text first.', 'error'); return; }
+
+  show('contract-spinner'); hide('contract-results');
+  try {
+    const resp = await fetch(API_BASE + '/agents/contract-review', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ document_text: text, document_name: name }),
+    });
+    const data = await resp.json();
+    hide('contract-spinner');
+
+    if (data.error) { toast(data.error, 'error'); return; }
+
+    const rl = data.risk_level || 'MEDIUM';
+    document.getElementById('contract-risk-badge').innerHTML =
+      `<span class="risk-badge risk-${rl}">⚡ ${rl} RISK</span>`;
+    document.getElementById('contract-risk-level').textContent = rl;
+    document.getElementById('contract-risk-level').style.color =
+      rl === 'HIGH' ? 'var(--danger)' : rl === 'MEDIUM' ? 'var(--warning)' : 'var(--success)';
+    document.getElementById('contract-flag-count').textContent = data.risk_count ?? 0;
+    renderMarkdown('contract-analysis', data.analysis || 'No analysis returned.');
+    show('contract-results');
+    analysesCount++; refreshStats();
+    toast('Contract analysis complete!', 'success');
+  } catch(e) {
+    hide('contract-spinner');
+    toast('API error: ' + e.message, 'error');
+  }
+}
+
+function loadSampleContract() {
+  document.getElementById('contract-text').value = `SERVICE AGREEMENT
+
+This Service Agreement ("Agreement") is entered into as of January 1, 2025, between TechCorp Inc. ("Client") and DevShop Ltd. ("Vendor").
+
+1. SERVICES: Vendor agrees to provide software development services as directed by Client. Client may change the scope of work at any time without notice.
+
+2. PAYMENT: Client shall pay Vendor $10,000 per month. Client reserves the right to withhold payment for any reason at its sole discretion.
+
+3. INTELLECTUAL PROPERTY: All work product created by Vendor shall be the sole and exclusive property of Client. Vendor irrevocably waives all moral rights to the work product.
+
+4. INDEMNIFICATION: Vendor shall indemnify, defend, and hold harmless Client from any and all claims, including claims arising from Client's own negligence.
+
+5. LIABILITY: Vendor's liability shall be unlimited. Client's liability shall be limited to $100.
+
+6. TERMINATION: Client may terminate this agreement at any time without cause or notice. Vendor may not terminate this agreement.
+
+7. NON-COMPETE: Vendor agrees not to work in the software industry anywhere in the world for 5 years after termination.
+
+8. GOVERNING LAW: This agreement shall be governed by the laws of Client's choice, as determined by Client after any dispute arises.
+
+9. AUTOMATIC RENEWAL: This agreement automatically renews for successive 2-year terms unless terminated by Client.`;
+  toast('Sample contract loaded!');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// COMPLIANCE CHECK
+// ═══════════════════════════════════════════════════════════════
+let selectedRegulations = ['GDPR', 'General Contract Law'];
+
+function togglePill(el, value) {
+  el.classList.toggle('selected');
+  if (el.classList.contains('selected')) {
+    if (!selectedRegulations.includes(value)) selectedRegulations.push(value);
+  } else {
+    selectedRegulations = selectedRegulations.filter(r => r !== value);
+  }
+}
+
+async function runComplianceCheck() {
+  const text = document.getElementById('compliance-text').value.trim();
+  const name = document.getElementById('compliance-name').value.trim() || 'document';
+  if (!text) { toast('Please paste document text first.', 'error'); return; }
+  if (selectedRegulations.length === 0) { toast('Please select at least one regulation.', 'error'); return; }
+
+  show('compliance-spinner'); hide('compliance-results');
+  try {
+    const resp = await fetch(API_BASE + '/agents/compliance-check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ document_text: text, document_name: name, regulations: selectedRegulations }),
+    });
+    const data = await resp.json();
+    hide('compliance-spinner');
+    if (data.error) { toast(data.error, 'error'); return; }
+
+    const score  = data.compliance_score ?? 70;
+    const scoreClass = score >= 75 ? 'score-high' : score >= 50 ? 'score-medium' : 'score-low';
+    document.getElementById('compliance-score-label').textContent = score + ' / 100';
+    document.getElementById('compliance-score-label').style.color =
+      score >= 75 ? 'var(--success)' : score >= 50 ? 'var(--warning)' : 'var(--danger)';
+    const bar = document.getElementById('compliance-score-bar');
+    bar.style.width = score + '%';
+    bar.className   = 'score-fill ' + scoreClass;
+
+    const violations = data.violations || [];
+    const vDiv = document.getElementById('compliance-violations');
+    if (violations.length > 0) {
+      vDiv.innerHTML = `<div style="font-size:0.8rem;color:var(--muted);margin-bottom:6px;">${violations.length} violation(s) detected:</div>` +
+        violations.map(v => `<div style="padding:6px 10px;background:rgba(248,81,73,0.08);border-left:3px solid var(--danger);border-radius:4px;margin-bottom:5px;font-size:0.82rem;">${escHtml(v)}</div>`).join('');
+    } else {
+      vDiv.innerHTML = '<div style="color:var(--success);font-size:0.82rem;">✅ No explicit violations detected.</div>';
+    }
+
+    renderMarkdown('compliance-report', data.report || 'No report returned.');
+    show('compliance-results');
+    analysesCount++; refreshStats();
+    toast('Compliance check complete!', 'success');
+  } catch(e) {
+    hide('compliance-spinner');
+    toast('API error: ' + e.message, 'error');
+  }
+}
+
+function loadSampleCompliance() {
+  document.getElementById('compliance-text').value = `PRIVACY POLICY
+
+We collect personal information including names, emails, and browsing data. We may share your data with third parties for marketing purposes without your explicit consent. We store your data indefinitely and do not provide a mechanism to request deletion. We use cookies to track your behavior across websites. Data may be transferred to servers outside your country. We reserve the right to change this policy without notice. Users have no right to access, correct, or delete their personal information. We are not responsible for data breaches.`;
+  toast('Sample privacy policy loaded!');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CASE RESEARCH
+// ═══════════════════════════════════════════════════════════════
+async function runCaseResearch() {
+  const query  = document.getElementById('research-query').value.trim();
+  const jur    = document.getElementById('research-jurisdiction').value;
+  const area   = document.getElementById('research-area').value;
+  if (!query) { toast('Please describe your legal situation first.', 'error'); return; }
+
+  show('research-spinner'); hide('research-results');
+  try {
+    const resp = await fetch(API_BASE + '/agents/case-research', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, jurisdiction: jur, legal_area: area }),
+    });
+    const data = await resp.json();
+    hide('research-spinner');
+    if (data.error) { toast(data.error, 'error'); return; }
+
+    document.getElementById('research-jurisdiction-tag').textContent = data.jurisdiction || jur;
+    const cases = data.cases_found || [];
+    const cDiv  = document.getElementById('research-known-cases');
+    if (cases.length > 0) {
+      cDiv.innerHTML = `<div style="font-size:0.8rem;color:var(--muted);margin-bottom:6px;">Relevant known cases (${cases.length}):</div>` +
+        cases.map(c => `<div style="padding:6px 10px;background:rgba(227,179,65,0.06);border-left:3px solid var(--gold);border-radius:4px;margin-bottom:5px;font-size:0.8rem;">${escHtml(c)}</div>`).join('');
+    } else {
+      cDiv.innerHTML = '';
+    }
+    renderMarkdown('research-report', data.research || 'No research returned.');
+    show('research-results');
+    analysesCount++; refreshStats();
+    toast('Case research complete!', 'success');
+  } catch(e) {
+    hide('research-spinner');
+    toast('API error: ' + e.message, 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FILE UPLOAD
+// ═══════════════════════════════════════════════════════════════
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('upload-zone').classList.remove('dragover');
+  const files = e.dataTransfer.files;
+  if (files.length > 0) uploadFile(files[0]);
+}
+
+function handleFileSelect(e) {
+  if (e.target.files.length > 0) uploadFile(e.target.files[0]);
+}
+
+async function uploadFile(file) {
+  document.getElementById('upload-status-text').textContent = `Uploading "${file.name}"...`;
+  show('upload-status'); hide('upload-result');
+
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('index', 'true');
+
+  try {
+    const resp = await fetch(API_BASE + '/documents/upload', {
+      method: 'POST',
+      body: formData,
+    });
+    const data = await resp.json();
+    hide('upload-status');
+
+    if (!resp.ok) {
+      toast(data.detail || 'Upload failed.', 'error');
+      return;
+    }
+
+    document.getElementById('upload-result-details').innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:0.82rem;">
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center;">
+          <div class="text-muted">Filename</div>
+          <div style="margin-top:3px;font-weight:600;word-break:break-all;">${escHtml(data.filename)}</div>
+        </div>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center;">
+          <div class="text-muted">Text Extracted</div>
+          <div style="margin-top:3px;font-weight:600;">${(data.text_length||0).toLocaleString()} chars</div>
+        </div>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center;">
+          <div class="text-muted">Chunks Indexed</div>
+          <div style="margin-top:3px;font-weight:600;color:var(--success);">${data.chunks_indexed || 0}</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;font-size:0.8rem;color:var(--muted);">${escHtml(data.message || '')}</div>`;
+    show('upload-result');
+    refreshStats();
+    toast(`"${file.name}" indexed successfully!`, 'success');
+  } catch(e) {
+    hide('upload-status');
+    toast('Upload error: ' + e.message, 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════
+function show(id) { document.getElementById(id).classList.remove('hidden'); }
+function hide(id) { document.getElementById(id).classList.add('hidden'); }
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function renderMarkdown(targetId, text) {
+  // Simple markdown-like rendering
+  let html = escHtml(text)
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/^#{3}\s(.+)$/gm, '<h3>$1</h3>')
+    .replace(/^#{2}\s(.+)$/gm, '<h2>$1</h2>')
+    .replace(/^#{1}\s(.+)$/gm, '<h1>$1</h1>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\n/g, '<br/>');
+  document.getElementById(targetId).innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+refreshStats();
+// Make sure dashboard tab is visible on load
+switchTab('dashboard');
+</script>
+</body>
+</html>
