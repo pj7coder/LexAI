@@ -18,7 +18,7 @@ _ENV_FILE = str(_BACKEND_DIR / ".env")
 class Settings(BaseSettings):
     # Groq LLM (Primary fast inference)
     GROQ_API_KEY: str = ""
-    GROQ_MODEL_ID: str = "llama-3.3-70b-versatile"
+    GROQ_MODEL_ID: str = "openai/gpt-oss-120b"
 
     # IBM WatsonX / Granite
     IBM_WATSONX_API_KEY: str = ""
