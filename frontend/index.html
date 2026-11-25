@@ -764,7 +764,7 @@ Ask me anything, or describe your legal situation and I'll route it to the best 
 // ═══════════════════════════════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════════════════════════════
-const API_BASE = 'http://localhost:8000/api/v1';
+const API_BASE = window.location.protocol === 'file:' ? 'http://localhost:8000/api/v1' : '/api/v1';
 let analysesCount = 0;
 let chatHistory   = [];
 
