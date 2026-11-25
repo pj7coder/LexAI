@@ -45,9 +45,9 @@ class Settings(BaseSettings):
         "null",          # file:// origin that browsers send for local HTML files
     ]
 
-    # Storage — absolute paths so they always resolve correctly
-    UPLOAD_DIR: str = str(_BACKEND_DIR / "uploads")
-    VECTOR_STORE_DIR: str = str(_BACKEND_DIR / "vector_store")
+    # Storage — use /tmp on Vercel (read-only filesystem), otherwise backend/
+    UPLOAD_DIR: str = "/tmp/lexai_uploads" if os.environ.get("VERCEL") else str(_BACKEND_DIR / "uploads")
+    VECTOR_STORE_DIR: str = "/tmp/lexai_vector_store" if os.environ.get("VERCEL") else str(_BACKEND_DIR / "vector_store")
 
     # Granite model IDs (IBM WatsonX)
     GRANITE_MODEL_ID: str = "ibm/granite-13b-instruct-v2"

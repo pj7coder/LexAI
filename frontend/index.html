@@ -914,7 +914,7 @@ async function sendChat() {
     }
   } catch (e) {
     removeTyping();
-    appendMsg('assistant', '⚠️ Could not reach the API server. Make sure the backend is running on http://localhost:8000');
+    appendMsg('assistant', `⚠️ Could not reach the API server at ${API_BASE}. (${err.message})`);
   }
   document.getElementById('chat-send-btn').disabled = false;
 }
