@@ -19,8 +19,11 @@ class GraniteLLMClient:
     _GENERATE_URL = "{url}/ml/v1/text/generation?version=2023-05-29"
     _STREAM_URL   = "{url}/ml/v1/text/generation_stream?version=2023-05-29"
     _TOKEN_URL    = "https://iam.cloud.ibm.com/identity/token"
+    _GROQ_URL     = "https://api.groq.com/openai/v1/chat/completions"
 
     def __init__(self):
+        self.groq_api_key = settings.GROQ_API_KEY
+        self.groq_model   = settings.GROQ_MODEL_ID
         self.api_key      = settings.IBM_WATSONX_API_KEY
         self.project_id   = settings.IBM_WATSONX_PROJECT_ID
         self.base_url     = settings.IBM_WATSONX_URL.rstrip("/")
@@ -70,9 +73,32 @@ class GraniteLLMClient:
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
+    async def _generate_groq(self, prompt: str, max_tokens: int = 1024) -> str:
+        """Generate text using Groq OpenAI-compatible API."""
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(
+                self._GROQ_URL,
+                headers={
+                    "Authorization": f"Bearer {self.groq_api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": self.groq_model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": max_tokens,
+                    "temperature": 0.3,
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data["choices"][0]["message"]["content"].strip()
+
     async def generate(self, prompt: str, max_tokens: int = 1024) -> str:
         """Single-shot text generation."""
-        # Fallback to mock when API key is not configured
+        if self.groq_api_key:
+            return await self._generate_groq(prompt, max_tokens)
+
+        # Fallback to mock when no API key is configured
         if not self.api_key:
             return self._mock_response(prompt)
 

@@ -60,6 +60,47 @@ async def parse_docx(content: bytes) -> str:
         raise ValueError(f"Could not parse DOCX: {e}")
 
 
+async def ocr_image(content: bytes, mime_type: str = "image/png") -> str:
+    """Extract text from an image using Groq Vision OCR (with pytesseract fallback)."""
+    import base64
+    from app.core.config import settings
+
+    if settings.GROQ_API_KEY:
+        import httpx
+        b64 = base64.b64encode(content).decode("utf-8")
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {settings.GROQ_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": "Extract all text from this legal document image verbatim. Preserve structure."},
+                                {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{b64}"}},
+                            ],
+                        }
+                    ],
+                    "max_tokens": 2048,
+                },
+            )
+            resp.raise_for_status()
+            return clean_text(resp.json()["choices"][0]["message"]["content"])
+
+    try:
+        import pytesseract
+        from PIL import Image
+        img = Image.open(io.BytesIO(content))
+        return clean_text(pytesseract.image_to_string(img))
+    except Exception as e:
+        raise ValueError(f"OCR failed (configure GROQ_API_KEY or install pytesseract): {e}")
+
+
 async def parse_document(filename: str, content: bytes) -> str:
     """Dispatch to the right parser based on file extension."""
     ext = filename.rsplit(".", 1)[-1].lower()
@@ -69,6 +110,9 @@ async def parse_document(filename: str, content: bytes) -> str:
         return await parse_docx(content)
     elif ext in ("txt", "md"):
         return clean_text(content.decode("utf-8", errors="ignore"))
+    elif ext in ("png", "jpg", "jpeg", "webp"):
+        mime = f"image/{'jpeg' if ext in ('jpg', 'jpeg') else ext}"
+        return await ocr_image(content, mime_type=mime)
     else:
         raise ValueError(f"Unsupported file type: .{ext}")
 
